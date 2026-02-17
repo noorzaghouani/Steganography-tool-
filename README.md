@@ -127,7 +127,7 @@ python cli.py decode -i <stego_image> -o <output_file> \
 ```
 ## 🔬 How It Works
 
-Read the report for more info available in two version (English and French) in the directoey /Report .
+Read the report for more info, available in French in the directory `/report`.
 ## 📄 License
 
 This project is provided as-is for educational purposes. Use responsibly and ethically.

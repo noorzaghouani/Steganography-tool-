@@ -3,7 +3,8 @@ from PIL import Image
 import random
 import hashlib
 import numpy as np
-from utils import prepare_payload_bytes, parse_header_from_bytes, verify_payload, bytes_to_bits, bits_to_bytes, HEADER_SIZE
+from utils import (prepare_payload_bytes, parse_header_from_bytes, verify_payload,
+                   bytes_to_bits, bits_to_bytes, decrypt_payload, decode_flags, HEADER_SIZE)
 
 def capacity_bytes_for_image(img, bits_per_channel=1):
     w, h = img.size
@@ -38,7 +39,7 @@ def embed_file_into_image(image_path, out_path, file_path, password=None, bits_p
     img = Image.open(image_path).convert('RGB')
     w,h = img.size
     cap = capacity_bytes_for_image(img, bits_per_channel)
-    payload = prepare_payload_bytes(file_path, bits_per_channel, adaptive)
+    payload = prepare_payload_bytes(file_path, bits_per_channel, adaptive, password=password)
 
     if len(payload) > cap:
         raise ValueError(f"Capacité insuffisante: {len(payload)} > {cap} bytes")
@@ -98,6 +99,7 @@ def extract_file_from_image(image_path, out_file_path, password=None, bits_per_c
             magic, size, checksum, flags = parse_header_from_bytes(header_bytes)
             if magic != b'STEG':
                 raise ValueError("Magic header not found")
+            _, _, encrypted = decode_flags(flags)
             payload_bits_needed = size*8
             header_parsed = True
             if payload_bits_needed==0:
@@ -115,6 +117,12 @@ def extract_file_from_image(image_path, out_file_path, password=None, bits_per_c
     payload_bytes = bytes(int(''.join(payload_bits[i:i+8]),2) for i in range(0,len(payload_bits),8))
     if not verify_payload(payload_bytes, checksum):
         raise ValueError("Checksum mismatch")
+
+    # Déchiffrement si le flag encrypted est activé
+    if encrypted:
+        if not password:
+            raise ValueError("Cette image est chiffrée — un mot de passe est requis")
+        payload_bytes = decrypt_payload(payload_bytes, password)
 
     import gzip
     try:
